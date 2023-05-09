@@ -1,0 +1,74 @@
+Install qemu:
+$ sudo apt-get install qemu
+
+Install tool and arm boards:
+$ sudo apt install qemu-utils qemu-system-arm
+
+
+For the QEMU emulation you will need the following:
+
+Create a new folder something like
+
+$ mkdir Project
+$ mkdir Project/qemu_vms
+
+$ cd Project/qemu_vms
+
+A Raspbian Image: https://downloads.raspberrypi.org/raspios_lite_armhf/images/raspios_lite_armhf-2023-05-03/
+Latest qemu kernel: https://github.com/dhruvvyas90/qemu-rpi-kernel
+
+Download and place the Raspbian bullseye image to Project/qemu_vms/.
+Download and place the qemu-kernel to Project/qemu_vms/.
+
+$ xz -v -d 2023-05-03-raspios-bullseye-armhf-lite.img.xz
+
+$ sudo losetup --show --find --partscan 2023-05-03-raspios-bullseye-armhf-lite.img
+/dev/loop10   ##IF SOMETHING ELSE IS RETURNED CHANGE FOLOWING LINES WHERE IT APPERS##
+$ ls /dev/loop10*
+/dev/loop10  /dev/loop10p1  /dev/loop10p2
+$ sudo mkdir /mnt/{raspbian-boot,raspbian-root}
+$ sudo mount /dev/loop10p1 /mnt/raspbian-boot
+$ sudo mount /dev/loop10p2 /mnt/raspbian-root
+$ sudo vim /mnt/raspbian-boot/userconf.txt
+
+Enter:
+pi:$6$c70VpvPsVNCG0YR5$l5vWWLsLko9Kj65gcQ8qvMkuOoRkEagI90qi3F/Y7rm8eNYZHW8CY6BOIKwMH7a3YYzZYL90zf304cAHLFaZE0
+
+Save with and exit with :wq
+$ sudo vim /mnt/raspbian-root/etc/ld.so.preload
+Comment out every line in file
+
+$ sudo umount /dev/loop10p1
+$ sudo umount /dev/loop10p2
+$ sudo rmdir /mnt/{raspbian-boot,raspbian-root}
+$ sudo losetup --detach /dev/loop10
+
+$ qemu-img convert -f raw -O qcow2 2023-05-03-raspios-bullseye-armhf-lite.img raspbian-bullseye-lite.qcow2
+$ qemu-system-arm \
+    -no-reboot \
+    -machine versatilepb -cpu arm1176 -m 256 \
+    -kernel qemu-rpi-kernel/kernel-qemu-5.10.63-bullseye \
+    -dtb qemu-rpi-kernel/versatile-pb-bullseye-5.10.63.dtb \
+    -drive format=qcow2,file=raspbian-bullseye-lite.qcow2 \
+    -append "root=/dev/sda2 panic=1 rootfstype=ext4 rw" \
+    -nographic \
+    -nic user,hostfwd=tcp::5022-:22
+
+login with username pi and password raspberry
+
+make keys for ssh and start it 
+$ ssh-keygen -A
+$ sudo service ssh start
+
+shutdown and then relaunch with:
+$ qemu-system-arm \
+    -machine versatilepb -cpu arm1176 -m 256 \
+    -kernel qemu-rpi-kernel/kernel-qemu-5.10.63-bullseye \
+    -dtb qemu-rpi-kernel/versatile-pb-bullseye-5.10.63.dtb \
+    -drive format=qcow2,file=raspbian-bullseye-lite.qcow2 \
+    -append "root=/dev/sda2 panic=1 rootfstype=ext4 rw" \
+    -nographic \
+    -nic user,hostfwd=tcp::5022-:22
+
+You can ssh into the machine from a new terminal with the command
+$ ssh pi@127.0.0.1 -p 5022
