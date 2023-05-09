@@ -44,6 +44,7 @@ $ sudo rmdir /mnt/{raspbian-boot,raspbian-root}
 $ sudo losetup --detach /dev/loop10
 
 $ qemu-img convert -f raw -O qcow2 2023-05-03-raspios-bullseye-armhf-lite.img raspbian-bullseye-lite.qcow2
+This command will run the pi machine:
 $ qemu-system-arm \
     -no-reboot \
     -machine versatilepb -cpu arm1176 -m 256 \
@@ -60,15 +61,7 @@ make keys for ssh and start it
 $ ssh-keygen -A
 $ sudo service ssh start
 
-shutdown and then relaunch with:
-$ qemu-system-arm \
-    -machine versatilepb -cpu arm1176 -m 256 \
-    -kernel qemu-rpi-kernel/kernel-qemu-5.10.63-bullseye \
-    -dtb qemu-rpi-kernel/versatile-pb-bullseye-5.10.63.dtb \
-    -drive format=qcow2,file=raspbian-bullseye-lite.qcow2 \
-    -append "root=/dev/sda2 panic=1 rootfstype=ext4 rw" \
-    -nographic \
-    -nic user,hostfwd=tcp::5022-:22
+shutdown and restart
 
 You can ssh into the machine from a new terminal with the command
 $ ssh pi@127.0.0.1 -p 5022
