@@ -6,6 +6,22 @@
 #include <linux/fs.h>
 #include <linux/device.h>
 
+
+
+#define  DEVICE_NAME "MD5_module"
+#define  CLASS_NAME  "MD5"
+
+
+static int    majorNumber;
+static struct class*  MD5charClass  = NULL;
+static struct device* MD5charDevice = NULL;
+
+// The prototype functions for the character driver -- must come before the struct definition
+static int     MD5_open_close(struct inode *, struct file *);
+static ssize_t MD5_read(struct file *, char *, size_t, loff_t *);
+static ssize_t MD5_write(struct file *, const char *, size_t, loff_t *);
+static long int MD5_ioctl(struct file *, unsigned int , unsigned long );
+
 // Function to initialize the MD5 cryptocore device driver
 static int md5_cryptocore_driver_init(void)
 {
