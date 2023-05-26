@@ -15,7 +15,7 @@
 #include <asm/uaccess.h> /* copy_from/to_user */
 /*
 The specific value of LEN_OF_KERNEL_BUFFER will depend on various factors,
-including the requirements of your MD5 cryptocore,
+including the requirements of MD5 cryptocore,
 the expected maximum size of the data to be processed,
 and any constraints imposed by the underlying hardware or system
 */
@@ -152,8 +152,9 @@ static ssize_t MD5_write(struct file * filep, const char * buffer, size_t len, l
 // Function to initialize the MD5 cryptocore device driver
 static int __init md5_cryptocore_driver_init(void)
 {
+
     // Perform necessary initialization specific to QEMU here
-    // For example, set up virtual memory-mapped interfaces or QEMU-specific configurations
+    // For example, set up virtual memory-mapped interfaces or QEMU-specific configurations,
 
     // Allocate any required resources (e.g., memory, IRQ, etc.)
     // Make sure to handle errors and free resources in case of failure
