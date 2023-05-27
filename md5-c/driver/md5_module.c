@@ -27,12 +27,12 @@ and any constraints imposed by the underlying hardware or system
 // *                            MD5 Implementation
 // *                        source:
 // *****************************************************************************
-static uint32_t S[] = {7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22,
+static uint32_t r[] = {7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22,
                        5,  9, 14, 20, 5,  9, 14, 20, 5,  9, 14, 20, 5,  9, 14, 20,
                        4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23,
                        6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21};
 
-static uint32_t K[] = {0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee,
+static uint32_t k[] = {0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee,
                        0xf57c0faf, 0x4787c62a, 0xa8304613, 0xfd469501,
                        0x698098d8, 0x8b44f7af, 0xffff5bb1, 0x895cd7be,
                        0x6b901122, 0xfd987193, 0xa679438e, 0x49b40821,
@@ -49,7 +49,7 @@ static uint32_t K[] = {0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee,
                        0x6fa87e4f, 0xfe2ce6e0, 0xa3014314, 0x4e0811a1,
                        0xf7537e82, 0xbd3af235, 0x2ad7d2bb, 0xeb86d391};
 
-#define ROTATE(x, c) (((x) << (c)) | ((x) >> (32 - (c))))
+#define LEFTROTATE(x, c) (((x) << (c)) | ((x) >> (32 - (c))))
 
 ssize_t md5sum(uint32_t *hash,const char __user *buff,size_t initial_len){
     uint8_t *msg = NULL;
@@ -213,9 +213,6 @@ static int  MD5_open_close(struct inode* inodep, struct file * filep) {
 
 
 static ssize_t MD5_read(struct file * filep, char * buffer, size_t len, loff_t * offset) {
-
-    char kernel_data[LEN_OF_KERNEL_BUFFER]; // Define a kernel buffer to hold the data, it should be replaced later with other variable in the driver structure
-    size_t data_length; // Variable to store the length of the data obtained
 
     // Perform necessary operations to obtain the data from the MD5 cryptocore
     // For example, retrieve computed MD5 hash or other relevant information
