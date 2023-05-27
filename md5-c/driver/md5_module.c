@@ -45,6 +45,7 @@ static struct file_operations fops =
                 .compat_ioctl = MD5_ioctl
         };
 
+
 static long int MD5_ioctl(struct file *filp, unsigned int cmd, unsigned long arg) {
     /*
     switch (cmd) {
@@ -61,6 +62,7 @@ static long int MD5_ioctl(struct file *filp, unsigned int cmd, unsigned long arg
 
     return -1;
 }
+
 
 
 /** @brief The device release function that is called whenever the device is initialized/released by
@@ -91,6 +93,8 @@ static int  MD5_open_close(struct inode* inodep, struct file * filep) {
  *  @param len The length of the b
  *  @param offset The offset if required
  */
+
+
 static ssize_t MD5_read(struct file * filep, char * buffer, size_t len, loff_t * offset) {
 
     char kernel_data[LEN_OF_KERNEL_BUFFER]; // Define a kernel buffer to hold the data, it should be replaced later with other variable in the driver structure
@@ -100,6 +104,7 @@ static ssize_t MD5_read(struct file * filep, char * buffer, size_t len, loff_t *
     // For example, retrieve computed MD5 hash or other relevant information
 
     // Copy the data from kernel space to user space
+    /*
     if (copy_to_user(buffer, kernel_data, data_length))
     {
         return -EFAULT; // Error occurred while copying data to user space
@@ -107,12 +112,13 @@ static ssize_t MD5_read(struct file * filep, char * buffer, size_t len, loff_t *
 
     // Return the number of bytes read
     return data_length;
+    */
 
     /*int data;
     READ_DATA_FROM_THE_HW (&data);
     copy_to_user(buffer, &data, 4);*/
-    //printk(KERN_INFO "LM: Executing READ\n");
-    //return 4;
+    printk(KERN_INFO "LM: Executing READ\n");
+    return 4;
 }
 
 
@@ -128,9 +134,10 @@ static ssize_t MD5_read(struct file * filep, char * buffer, size_t len, loff_t *
  * the data is copied from user space to a kernel buffer using the copy_from_user function to ensure safe memory access.
  * Afterward, we can process the data using the MD5 cryptocore,performing any necessary computations or data handling.
  */
+
 static ssize_t MD5_write(struct file * filep, const char * buffer, size_t len, loff_t * offset) {
     // Validate and copy the user-provided data to kernel space
-    char kernel_buffer[LEN_OF_KERNEL_BUFFER];
+    /*char kernel_buffer[LEN_OF_KERNEL_BUFFER];
     if (copy_from_user(kernel_buffer, buffer, len))
     {
         return -EFAULT; // Error occurred while copying data from user space
@@ -140,12 +147,13 @@ static ssize_t MD5_write(struct file * filep, const char * buffer, size_t len, l
     // Perform necessary computations or data handling
 
     // Return the number of bytes written
-    return len;
+    return len;*/
 
     //WRITE_DATA_TO_THE_HW( buffer);
-    //printk(KERN_INFO "LM: Executing WRITE\n");
-    //return 1;
+    printk(KERN_INFO "LM: Executing WRITE\n");
+    return 1;
 }
+
 
 
 
@@ -162,7 +170,36 @@ static int __init md5_cryptocore_driver_init(void)
     // Register the driver with the operating system
     // For example, create a character device, set up file operations, etc.
     // Make sure to handle errors and clean up if registration fails
+    printk(KERN_INFO "MD5: Initializing the MD5_MODULE LKM\n");
 
+    // Try to dynamically allocate a major number for the device -- more difficult but worth it
+    majorNumber = register_chrdev(0, DEVICE_NAME, &fops);
+    if (majorNumber<0){
+        printk(KERN_ALERT "MD5 failed to register a major number\n");
+        return majorNumber;
+    }
+    printk(KERN_INFO "MD5: registered correctly with major number %d\n", majorNumber);
+
+    // Register the device class
+    LMcharClass = class_create(THIS_MODULE, CLASS_NAME);
+    if (IS_ERR(MD5charClass)){                // Check for error and clean up if there is
+        unregister_chrdev(majorNumber, DEVICE_NAME);
+        printk(KERN_ALERT "Failed to register device class\n");
+        return PTR_ERR(MD5charClass);          // Correct way to return an error on a pointer
+    }
+    printk(KERN_INFO "MD5: device class registered correctly\n");
+
+    // Register the device driver
+    LMcharDevice = device_create(MD5charClass, NULL, MKDEV(majorNumber, 0), NULL, DEVICE_NAME);
+    if (IS_ERR(MD5charDevice)){               // Clean up if there is an error
+        class_destroy(MD5charClass);           // Repeated code but the alternative is goto statements
+        unregister_chrdev(majorNumber, DEVICE_NAME);
+        printk(KERN_ALERT "Failed to create the device\n");
+        return PTR_ERR(MD5charDevice);
+    }
+    printk(KERN_INFO "MD5: device class created correctly\n"); // Made it! device was initialized
+    return 0;
+}
     // Print a message to indicate successful initialization
     printk(KERN_INFO "MD5 Cryptocore Driver Initialized\n");
 
@@ -177,6 +214,11 @@ static void __exit md5_cryptocore_driver_exit(void)
 
     // Unregister the driver from the operating system
     // For example, unregister the character device, clean up file operations, etc.
+    device_destroy(MD5charClass, MKDEV(majorNumber, 0));     // remove the device
+    class_unregister(MD5charClass);                          // unregister the device class
+    class_destroy(MD5charClass);                             // remove the device class
+    unregister_chrdev(majorNumber, DEVICE_NAME);             // unregister the major number
+    printk(KERN_INFO "MD5: Goodbye from the LKM!\n");
 
     // Print a message to indicate successful exit
     printk(KERN_INFO "MD5 Cryptocore Driver Exited\n");
