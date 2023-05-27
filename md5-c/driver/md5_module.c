@@ -2,8 +2,8 @@
 // Created by jbardaghji on 25/05/23.
 //
 #include <linux/init.h>
-#include <linux/config.h>
 #include <linux/module.h>
+#include <linux/device.h>
 #include <linux/kernel.h> /* printk() */
 #include <linux/slab.h> /* kmalloc() */
 #include <linux/fs.h> /* everything... */
@@ -11,7 +11,6 @@
 #include <linux/types.h> /* size_t */
 #include <linux/proc_fs.h>
 #include <linux/fcntl.h> /* O_ACCMODE */
-#include <asm/system.h> /* cli(), *_flags */
 #include <asm/uaccess.h> /* copy_from/to_user */
 /*
 The specific value of LEN_OF_KERNEL_BUFFER will depend on various factors,
@@ -181,7 +180,7 @@ static int __init md5_cryptocore_driver_init(void)
     printk(KERN_INFO "MD5: registered correctly with major number %d\n", majorNumber);
 
     // Register the device class
-    LMcharClass = class_create(THIS_MODULE, CLASS_NAME);
+    MD5charClass = class_create(THIS_MODULE, CLASS_NAME);
     if (IS_ERR(MD5charClass)){                // Check for error and clean up if there is
         unregister_chrdev(majorNumber, DEVICE_NAME);
         printk(KERN_ALERT "Failed to register device class\n");
@@ -190,20 +189,15 @@ static int __init md5_cryptocore_driver_init(void)
     printk(KERN_INFO "MD5: device class registered correctly\n");
 
     // Register the device driver
-    LMcharDevice = device_create(MD5charClass, NULL, MKDEV(majorNumber, 0), NULL, DEVICE_NAME);
+    MD5charDevice = device_create(MD5charClass, NULL, MKDEV(majorNumber, 0), NULL, DEVICE_NAME);
     if (IS_ERR(MD5charDevice)){               // Clean up if there is an error
         class_destroy(MD5charClass);           // Repeated code but the alternative is goto statements
         unregister_chrdev(majorNumber, DEVICE_NAME);
         printk(KERN_ALERT "Failed to create the device\n");
         return PTR_ERR(MD5charDevice);
     }
-    printk(KERN_INFO "MD5: device class created correctly\n"); // Made it! device was initialized
+    printk(KERN_INFO "MD5 Cryptocore Driver Initialized\n"); // Made it! device was initialized
     return 0;
-}
-    // Print a message to indicate successful initialization
-    printk(KERN_INFO "MD5 Cryptocore Driver Initialized\n");
-
-    return 0; // Return success
 }
 
 // Function to clean up and unregister the MD5 cryptocore device driver
