@@ -4,6 +4,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/cdev.h>
 #include <linux/string.h>
 #include <linux/kernel.h> /* printk() */
 #include <linux/slab.h> /* kmalloc() */
@@ -141,9 +142,11 @@ ssize_t md5sum(uint32_t *hash,const char __user *buff,size_t initial_len){
 
 
 
-static int    majorNumber;
+//static int    majorNumber;
 static struct class*  MD5charClass  = NULL;
 static struct device* MD5charDevice = NULL;
+static struct cdev  md5_cdev;
+static dev_t md5_devno;
 
 // The prototype functions for the character driver -- must come before the struct definition
 static int     MD5_open_close(struct inode *, struct file *);
@@ -151,7 +154,7 @@ static ssize_t MD5_read(struct file *, char *, size_t, loff_t *);
 static ssize_t MD5_write(struct file *, const char *, size_t, loff_t *);
 static long int MD5_ioctl(struct file *, unsigned int , unsigned long );
 
-static struct file_operations fops =
+static struct file_operations md5_fops =
         {
                 .owner = THIS_MODULE,
                 .open = MD5_open_close,
@@ -271,43 +274,46 @@ static ssize_t MD5_write(struct file * filep, const char * buffer, size_t len, l
 
 
 
-// Function to initialize the MD5 cryptocore device driver
+/* Function to initialize the MD5 crypto core character device driver
+1. we will create a device number using alloc_chrdev_region().
+2.We are making a device registration with cdev strucutres.
+3.Creating device files.
+ */
 static int __init md5_cryptocore_driver_init(void)
 {
+    int err;
 
-    // Perform necessary initialization specific to QEMU here
-    // For example, set up virtual memory-mapped interfaces or QEMU-specific configurations,
-
-    // Allocate any required resources (e.g., memory, IRQ, etc.)
-    // Make sure to handle errors and free resources in case of failure
-
-    // Register the driver with the operating system
-    // For example, create a character device, set up file operations, etc.
-    // Make sure to handle errors and clean up if registration fails
-    printk(KERN_INFO "MD5: Initializing the MD5_MODULE LKM\n");
-
-    // Try to dynamically allocate a major number for the device -- more difficult but worth it
-    majorNumber = register_chrdev(0, DEVICE_NAME, &fops);
-    if (majorNumber<0){
-        printk(KERN_ALERT "MD5 failed to register a major number\n");
-        return majorNumber;
+    // allocate major and minor device number
+    int alloc_region = alloc_chrdev_region(&md5_devno, 0, 1, "md5_Driver");
+    if(alloc_region <0){
+        printk(KERN_ERR "Failed to allocate character device number\n");
+        return alloc_region;
     }
-    printk(KERN_INFO "MD5: registered correctly with major number %d\n", majorNumber);
+    printk(KERN_INFO "MD5: Major and Minor numbers are allocated correctly\n");
+
+    // make char device registration
+    cdev_init(&md5_cdev, &md5_fops);
+    if ((err = cdev_add(&md5_cdev, md5_devno, 1))) {
+        printk(KERN_ERR "Error %d adding md5\n", err);
+        return err;
+    }
+    printk(KERN_INFO "MD5 device is registered correctly\n");
+
 
     // Register the device class
     MD5charClass = class_create(THIS_MODULE, CLASS_NAME);
     if (IS_ERR(MD5charClass)){                // Check for error and clean up if there is
-        unregister_chrdev(majorNumber, DEVICE_NAME);
+        unregister_chrdev_region(md5_devno, 1);
         printk(KERN_ALERT "Failed to register device class\n");
         return PTR_ERR(MD5charClass);          // Correct way to return an error on a pointer
     }
     printk(KERN_INFO "MD5: device class registered correctly\n");
 
     // Register the device driver
-    MD5charDevice = device_create(MD5charClass, NULL, MKDEV(majorNumber, 0), NULL, DEVICE_NAME);
+    MD5charDevice = device_create(MD5charClass, NULL, md5_devno, NULL, DEVICE_NAME);
     if (IS_ERR(MD5charDevice)){               // Clean up if there is an error
         class_destroy(MD5charClass);           // Repeated code but the alternative is goto statements
-        unregister_chrdev(majorNumber, DEVICE_NAME);
+        cdev_del(&md5_cdev);
         printk(KERN_ALERT "Failed to create the device\n");
         return PTR_ERR(MD5charDevice);
     }
@@ -318,15 +324,13 @@ static int __init md5_cryptocore_driver_init(void)
 // Function to clean up and unregister the MD5 cryptocore device driver
 static void __exit md5_cryptocore_driver_exit(void)
 {
-    // Release any resources allocated during initialization
-    // For example, free memory, release IRQ, etc.
-
     // Unregister the driver from the operating system
-    // For example, unregister the character device, clean up file operations, etc.
-    device_destroy(MD5charClass, MKDEV(majorNumber, 0));     // remove the device
+    //unregister the character device, clean up file operations, etc.
+    device_destroy(MD5charClass, md5_devno);     // remove the device
+    cdev_del(&md5_cdev);
     class_unregister(MD5charClass);                          // unregister the device class
     class_destroy(MD5charClass);                             // remove the device class
-    unregister_chrdev(majorNumber, DEVICE_NAME);             // unregister the major number
+    unregister_chrdev_region(md5_devno, 1);            // unregister the major number
     printk(KERN_INFO "MD5: Goodbye from the LKM!\n");
 
     // Print a message to indicate successful exit
