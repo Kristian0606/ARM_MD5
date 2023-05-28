@@ -233,7 +233,7 @@ static ssize_t MD5_write(struct file * filep, const char * buffer, size_t len, l
 }
 
 
-static int __init MD5_module_init(void){
+static int __init MD5_module_init(void) {
 
     struct device *MD5_device;
     int error;
@@ -245,14 +245,14 @@ static int __init MD5_module_init(void){
         pr_err("Can't get major number\n");
         return error;
     }
-    major = MAJOR(devt);
-    pr_info("md5_char major number = %d\n",major);
+    majorNumber = MAJOR(devt);
+    pr_info("md5_char major number = %d\n", majorNumber);
 
     /* Create device class, visible in /sys/class */
     MD5charClass = class_create(THIS_MODULE, CLASS_NAME);
     if (IS_ERR(MD5charClass)) {
         pr_err("Error creating sdma test module class.\n");
-        unregister_chrdev_region(MKDEV(major, 0), 1);
+        unregister_chrdev_region(MKDEV(majorNumber, 0), 1);
         return PTR_ERR(MD5charClass);
     }
 
@@ -263,29 +263,19 @@ static int __init MD5_module_init(void){
     cdev_add(&md5_cdev, devt, 1);
 
     MD5_device = device_create(MD5charClass,
-                                 &pdev->dev,   /* no parent device */
-                                 devt,    /* associated dev_t */
-                                 NULL,   /* no additional data */
-                                 DEVICE_NAME);  /* device name */
+                               NULL,   /* no parent device */
+                               devt,    /* associated dev_t */
+                               NULL,   /* no additional data */
+                               DEVICE_NAME);  /* device name */
 
     if (IS_ERR(MD5_device)) {
         pr_err("Error creating sdma test class device.\n");
         class_destroy(MD5charClass);
         unregister_chrdev_region(devt, 1);
         return -1;
-
-
-
-
-
-
-
-
-
-
-
-
-
+    }
+    pr_info("md5 char module loaded\n");
+    return 0;
 
     /*
     printk(KERN_INFO "MD5: Initializing the MD5_MODULE MD5M\n");
@@ -320,12 +310,26 @@ static int __init MD5_module_init(void){
      */
 }
 
-static void __exit MD5_module_exit(void){
-    device_destroy(MD5charClass, MKDEV(majorNumber, 0));     // remove the device
-    class_unregister(MD5charClass);                          // unregister the device class
-    class_destroy(MD5charClass);                             // remove the device class
-    unregister_chrdev(majorNumber, DEVICE_NAME);             // unregister the major number
-    printk(KERN_INFO "MD5: Goodbye from the MD5!\n");
+static void __exit MD5_module_exit(void) {
+    struct tty_listitem *lptr, *next;
+    unregister_chrdev_region(MKDEV(majorNumber, 0), 1);
+    device_destroy(MD5charClass, MKDEV(majorNumber, 0));
+    cdev_del(&md5_cdev);
+    class_destroy(MD5charClass);
+    list_for_each_entry_safe(lptr, next, &tty_list, list)
+    {
+        list_del(&lptr->list);
+        kfree(lptr);
+
+        pr_info("dummy char module Unloaded\n");
+
+        /*device_destroy(MD5charClass, MKDEV(majorNumber, 0));     // remove the device
+        class_unregister(MD5charClass);                          // unregister the device class
+        class_destroy(MD5charClass);                             // remove the device class
+        unregister_chrdev(majorNumber, DEVICE_NAME);             // unregister the major number
+        printk(KERN_INFO "MD5: Goodbye from the MD5!\n");
+         */
+    }
 }
 
 module_init(MD5_module_init);
