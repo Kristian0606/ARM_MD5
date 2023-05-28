@@ -160,7 +160,7 @@ static struct tty_listitem *md5_lookfor_tty(dev_t key) {
 
 static int    majorNumber;
 static struct class*  MD5charClass  = NULL;
-static struct device* MD5charDevice = NULL;
+static struct cdev md5_cdev;
 
 // The prototype functions for the character driver -- must come before the struct definition
 static int     MD5_open_close(struct inode *, struct file *);
@@ -169,7 +169,7 @@ static ssize_t MD5_write(struct file *, const char *, size_t, loff_t *);
 
 
 
-static struct file_operations fops =
+static struct file_operations md5_fops =
         {
                 .owner = THIS_MODULE,
                 .open = MD5_open_close,
@@ -234,6 +234,60 @@ static ssize_t MD5_write(struct file * filep, const char * buffer, size_t len, l
 
 
 static int __init MD5_module_init(void){
+
+    struct device *MD5_device;
+    int error;
+    dev_t devt = 0;
+
+    /* Get a range of minor numbers (starting with 0) to work with */
+    error = alloc_chrdev_region(&devt, 0, 1, DEVICE_NAME);
+    if (error < 0) {
+        pr_err("Can't get major number\n");
+        return error;
+    }
+    major = MAJOR(devt);
+    pr_info("md5_char major number = %d\n",major);
+
+    /* Create device class, visible in /sys/class */
+    MD5charClass = class_create(THIS_MODULE, CLASS_NAME);
+    if (IS_ERR(MD5charClass)) {
+        pr_err("Error creating sdma test module class.\n");
+        unregister_chrdev_region(MKDEV(major, 0), 1);
+        return PTR_ERR(MD5charClass);
+    }
+
+    /* Initialize the char device and tie a file_operations to it */
+    cdev_init(&md5_cdev, &md5_fops);
+    md5_cdev.owner = THIS_MODULE;
+    /* Now make the device live for the users to access */
+    cdev_add(&md5_cdev, devt, 1);
+
+    MD5_device = device_create(MD5charClass,
+                                 &pdev->dev,   /* no parent device */
+                                 devt,    /* associated dev_t */
+                                 NULL,   /* no additional data */
+                                 DEVICE_NAME);  /* device name */
+
+    if (IS_ERR(MD5_device)) {
+        pr_err("Error creating sdma test class device.\n");
+        class_destroy(MD5charClass);
+        unregister_chrdev_region(devt, 1);
+        return -1;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    /*
     printk(KERN_INFO "MD5: Initializing the MD5_MODULE MD5M\n");
 
     // Try to dynamically allocate a major number for the device -- more difficult but worth it
@@ -263,6 +317,7 @@ static int __init MD5_module_init(void){
     }
     printk(KERN_INFO "MD5: device class created correctly\n"); // Made it! device was initialized
     return 0;
+     */
 }
 
 static void __exit MD5_module_exit(void){
