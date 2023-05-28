@@ -295,50 +295,6 @@ static int __init md5_cryptocore_driver_init(void) {
     error:
     return -1;
 }
-
-/*
-    int err;
-
-
-    // allocate major and minor device number
-    int alloc_region = alloc_chrdev_region(&md5_devno, 0, 1, "md5_Driver");
-    if(alloc_region <0){
-        printk(KERN_ERR "Failed to allocate character device number\n");
-        return alloc_region;
-    }
-    printk(KERN_INFO "MPC: Major and Minor numbers are allocated correctly\n");
-
-    // make char device registration
-    cdev_init(&md5_cdev, &md5_fops);
-    if ((err = cdev_add(&md5_cdev, md5_devno, 1))) {
-        printk(KERN_ERR "Error %d adding md5\n", err);
-        return err;
-    }
-    printk(KERN_INFO "MPC : device is registered correctly\n");
-
-
-    // Register the device class
-    MD5charClass = class_create(THIS_MODULE, CLASS_NAME);
-    if (IS_ERR(MD5charClass)){                // Check for error and clean up if there is
-        unregister_chrdev_region(md5_devno, 1);
-        printk(KERN_ALERT "Failed to register device class\n");
-        return PTR_ERR(MD5charClass);          // Correct way to return an error on a pointer
-    }
-    printk(KERN_INFO "MPC: device class registered correctly\n");
-
-    // Register the device driver
-    MD5charDevice = device_create(MD5charClass, NULL, md5_devno, NULL, DEVICE_NAME);
-    if (IS_ERR(MD5charDevice)){               // Clean up if there is an error
-        class_destroy(MD5charClass);           // Repeated code but the alternative is goto statements
-        cdev_del(&md5_cdev);
-        printk(KERN_ALERT "Failed to create the device\n");
-        return PTR_ERR(MD5charDevice);
-    }
-    printk(KERN_INFO "MPC :  Cryptocore Driver Initialized\n"); // Made it! device was initialized
-    return 0;
-
-}
-*/
 /* Function to clean up and unregister the MD5 cryptocore device driver
  1.Unregister the driver from the operating system, deleting cdev.
  2. unregister the character device region, clean up file operations, etc
@@ -362,18 +318,6 @@ static void __exit md5_cryptocore_driver_exit(void) {
     }
     printk("MD5: Driver unloaded\n");
 }
-
-    /*
-    device_destroy(MD5charClass, md5_devno);     // remove the device
-    cdev_del(&md5_cdev);                         // remove character device from kernel
-    class_unregister(MD5charClass);              // unregister the device class
-    class_destroy(MD5charClass);                 // remove the device class
-    unregister_chrdev_region(md5_devno, 1);      // unload the device numbers
-    printk(KERN_INFO "MPC: Goodbye from the MPC!\n");
-
-    // Print a message to indicate successful exit
-    printk(KERN_INFO "MD5 Cryptocore Driver Exited\n");
-     */
 
 // Register the initialization and exit functions with the kernel
 module_init(md5_cryptocore_driver_init);
