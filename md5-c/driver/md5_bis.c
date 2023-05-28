@@ -17,6 +17,7 @@
 
 #define  DEVICE_NAME "MD5"
 #define  CLASS_NAME  "MD5"
+#define MPC_DEV_MODE  0666
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jack Bardaghji");
@@ -163,7 +164,7 @@ static struct class*  MD5charClass  = NULL;
 static struct cdev md5_cdev;
 
 // The prototype functions for the character driver -- must come before the struct definition
-static int     MD5_open_close(struct inode *, struct file *);
+static int     MD5_open(struct inode *, struct file *);
 static ssize_t MD5_read(struct file *, char *, size_t, loff_t *);
 static ssize_t MD5_write(struct file *, const char *, size_t, loff_t *);
 
@@ -172,12 +173,12 @@ static ssize_t MD5_write(struct file *, const char *, size_t, loff_t *);
 static struct file_operations md5_fops =
         {
                 .owner = THIS_MODULE,
-                .open = MD5_open_close,
+                .open = MD5_open,
                 .read = MD5_read,
-                .write = MD5_write
+                .write = MD5_write,
         };
 
-static int  MD5_open_close(struct inode* inodep, struct file * filep) {
+static int  MD5_open(struct inode* inodep, struct file * filep) {
     struct tty_listitem *tty_item;
     dev_t key;
 
@@ -225,6 +226,10 @@ static ssize_t MD5_write(struct file * filep, const char * buffer, size_t len, l
 
     return err ? err : len;
 }
+static int md5_dev_uevent(struct device *dev, struct kobj_uevent_env *env) {
+    add_uevent_var(env, "DEVMODE=%#o", MPC_DEV_MODE);
+    return 0;
+}
 
 
 static int __init MD5_module_init(void) {
@@ -248,6 +253,8 @@ static int __init MD5_module_init(void) {
         pr_err("Error creating sdma test module class.\n");
         unregister_chrdev_region(MKDEV(majorNumber, 0), 1);
         return PTR_ERR(MD5charClass);
+    }else{
+        MD5charClass->dev_uevent = md5_dev_uevent;
     }
 
     /* Initialize the char device and tie a file_operations to it */
