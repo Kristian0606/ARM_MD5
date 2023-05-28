@@ -266,7 +266,7 @@ static int __init md5_cryptocore_driver_init(void) {
     dev_t first_dev = 0;
     int err;
     /* allocate driver region */
-    if (alloc_chrdev_region(&first_dev, md5_minor, 1, DEVICE_NAME) < 0) {
+    if (alloc_chrdev_region(&first_dev, 0, 1, DEVICE_NAME) < 0) {
         pr_err("MD5: unable to allocate '%s' region\n", DEVICE_NAME);
         goto error;
     }
@@ -276,7 +276,7 @@ static int __init md5_cryptocore_driver_init(void) {
 
     /* create driver class */
     if ((md5_class = class_create(THIS_MODULE, CLASS_NAME)) == NULL) {
-        printk("MD5: unable to create '%s' class\n", CLASS_NAME);
+        pr_err("MD5: unable to create '%s' class\n", CLASS_NAME);
         goto error;
     } else
         md5_class->dev_uevent = md5_dev_uevent;

@@ -10,6 +10,10 @@
 #include <linux/uaccess.h>
 #include <linux/tty.h>
 #include <linux/sched/signal.h>
+#include <linux/list.h>
+#include <linux/spinlock.h>
+#include <linux/moduleparam.h>
+#include <linux/slab.h>
 
 #define  DEVICE_NAME "MD5_module"
 #define  CLASS_NAME  "MD5"
@@ -51,7 +55,7 @@ static const uint32_t k[] = {0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee,
 #define LEFTROTATE(x, c) (((x) << (c)) | ((x) >> (32 - (c))))
 #define MD5_HASH_SIZE 16
 
-ssize_t md5sum(uint32_t *h, const char __user *ubuff, size_t initial_len) {
+ssize_t md5sum(uint32_t *h, const char *ubuff, size_t initial_len) {
     uint8_t *msg = NULL;
     uint32_t temp, bits_len;
     int new_len, offset;
@@ -184,7 +188,7 @@ static int  MD5_open_close(struct inode* inodep, struct file * filep) {
     dev_t key;
 
     if (!current->signal->tty) {
-        pr_err("mpc: md5: process \"%s\" has no ctl tty\n", current->comm);
+        pr_err("md5: process \"%s\" has no ctl tty\n", current->comm);
         return -EINVAL;
     }
     key = tty_devnum(current->signal->tty);
@@ -230,7 +234,7 @@ static ssize_t MD5_write(struct file * filep, const char * buffer, size_t len, l
 
 
 static int __init MD5_module_init(void){
-    printk(KERN_INFO "MD5: Initializing the MD5_MODULE LKM\n");
+    printk(KERN_INFO "MD5: Initializing the MD5_MODULE MD5M\n");
 
     // Try to dynamically allocate a major number for the device -- more difficult but worth it
     majorNumber = register_chrdev(0, DEVICE_NAME, &fops);
