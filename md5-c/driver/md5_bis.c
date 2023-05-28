@@ -15,7 +15,7 @@
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
 
-#define  DEVICE_NAME "MD5_module"
+#define  DEVICE_NAME "MD5"
 #define  CLASS_NAME  "MD5"
 
 MODULE_LICENSE("GPL");
@@ -174,14 +174,8 @@ static struct file_operations md5_fops =
                 .owner = THIS_MODULE,
                 .open = MD5_open_close,
                 .read = MD5_read,
-                .write = MD5_write,
-                .release = MD5_open_close
+                .write = MD5_write
         };
-
-
-
-
-
 
 static int  MD5_open_close(struct inode* inodep, struct file * filep) {
     struct tty_listitem *tty_item;
@@ -320,16 +314,15 @@ static void __exit MD5_module_exit(void) {
     {
         list_del(&lptr->list);
         kfree(lptr);
-
-        pr_info("dummy char module Unloaded\n");
-
-        /*device_destroy(MD5charClass, MKDEV(majorNumber, 0));     // remove the device
-        class_unregister(MD5charClass);                          // unregister the device class
-        class_destroy(MD5charClass);                             // remove the device class
-        unregister_chrdev(majorNumber, DEVICE_NAME);             // unregister the major number
-        printk(KERN_INFO "MD5: Goodbye from the MD5!\n");
-         */
     }
+    pr_info("dummy char module Unloaded\n");
+
+    /*device_destroy(MD5charClass, MKDEV(majorNumber, 0));     // remove the device
+       class_unregister(MD5charClass);                          // unregister the device class
+       class_destroy(MD5charClass);                             // remove the device class
+       unregister_chrdev(majorNumber, DEVICE_NAME);             // unregister the major number
+       printk(KERN_INFO "MD5: Goodbye from the MD5!\n");
+        */
 }
 
 module_init(MD5_module_init);
