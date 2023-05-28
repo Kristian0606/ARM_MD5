@@ -1,4 +1,4 @@
-obj-m+=md5_module.o
+obj-m+=md5.o
 
 all:
 	make -C /lib/modules/$(shell uname -r)/build/ M=$(PWD) modules
