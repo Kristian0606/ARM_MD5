@@ -125,8 +125,8 @@ ssize_t md5sum(uint32_t *h, const char *ubuff, size_t initial_len) {
 // *****************************************************************************
 // *             TTY structure(linked list) to communicate with terminal    *
 // *****************************************************************************
-struct tty_listitem {
-    dev_t key;
+struct tty_list {
+    dev_t device_id;
     uint8_t hash[MD5_HASH_SIZE];
     size_t index;
     struct list_head list;
@@ -135,28 +135,33 @@ struct tty_listitem {
 
 // the list of devices and a lock to protect it
 static LIST_HEAD(tty_list);
-static DEFINE_SPINLOCK(tty_list_lock);
+static struct mutex tty_list_mutex;
 
-static struct tty_listitem *md5_lookfor_tty(dev_t key) {
-    struct tty_listitem *lptr;
+static struct tty_list *find_tty_item(dev_t device_id) {
+    struct tty_list *item;
+    struct tty_list *found =NULL;
 
-    list_for_each_entry(lptr, &tty_list, list) {
-        if (lptr->key == key)
-            return lptr;
+    list_for_each_entry(item, &tty_list, list) {
+        if (item->device_id == device_id){
+            found=item;
+        }
+        return found;
+    }
+    if(!found){
+        found = kmalloc(sizeof(struct tty_list), GFP_KERNEL);
+        if(!found){
+            return NULL;
+        }
     }
 
-    lptr = kmalloc(sizeof(struct tty_listitem), GFP_KERNEL);
-    if (!lptr) /* no memory */
-        return NULL;
-
     /* init tty */
-    memset(lptr, 0, sizeof(struct tty_listitem));
-    lptr->key = key;
-    lptr->index = 0;
+    memset(found, 0, sizeof(struct tty_list));
+    found->device_id = device_id;
+    found->index = 0;
 
-    list_add(&lptr->list, &tty_list);
+    list_add(&found->list, &tty_list);
 
-    return lptr;
+    return found;
 }
 
 static int    majorNumber;
@@ -179,54 +184,60 @@ static struct file_operations md5_fops =
         };
 
 static int  MD5_open(struct inode* inodep, struct file * filep) {
-    struct tty_listitem *tty_item;
-    dev_t key;
+    struct tty_list *tty_item;
+    dev_t device_id;
 
     if (!current->signal->tty) {
         pr_err("MD5: process \"%s\" has no tty\n", current->comm);
         return -EINVAL;
     }
-    key = tty_devnum(current->signal->tty);
+    device_id = tty_devnum(current->signal->tty);
 
     /* look for tty in the list */
-    spin_lock(&tty_list_lock);
-    tty_item = md5_lookfor_tty(key);
-    spin_unlock(&tty_list_lock);
-
-    if (!tty_item) /* no tty_item because kmalloc error */
+    mutex_lock(&tty_list_mutex);
+    tty_item = find_tty_item(device_id);
+    if (!tty_item) {
+        mutex_unlock(&tty_list_mutex);
         return -ENOMEM;
+    }
+    mutex_unlock(&tty_list_mutex);
 
     filep->private_data = tty_item;
 
     printk(KERN_INFO "MD5: Executing OPEN\n");
 
     return nonseekable_open(inodep, filep);
-
 }
 
 
 static ssize_t MD5_read(struct file * filep, char * buffer, size_t len, loff_t * offset) {
-    struct tty_listitem *tty_item = filep->private_data;
+    struct tty_list *tty_item = (struct tty_list *)filep->private_data;
+    ssize_t bytes_read = 0;
 
-    len = min(len, MD5_HASH_SIZE - tty_item->index);
+    if (*offset >= MD5_HASH_SIZE)
+        return 0;  // Reached end of data, nothing more to read
 
-    if (copy_to_user(buffer, tty_item->hash + tty_item->index, len))
+    bytes_read = min(len, (size_t)(MD5_HASH_SIZE - *offset));
+
+    if (copy_to_user(buffer, tty_item->hash + *offset, bytes_read))
         return -EFAULT;
 
-    tty_item->index += len;
+    *offset += bytes_read;
 
     printk(KERN_INFO "MD5: Executing READ\n");
 
-    return len;
+    return bytes_read;
 }
 
 
 static ssize_t MD5_write(struct file * filep, const char * buffer, size_t len, loff_t * offset) {
-    struct tty_listitem *tty_item = filep->private_data;
+    struct tty_list *tty_item = (struct tty_list *)filep->private_data;
+    ssize_t err = 0;
 
-    ssize_t err = md5sum((uint32_t*) tty_item->hash, buffer, len);
+    err = md5sum((uint32_t *)tty_item->hash, buffer, len);
 
-    tty_item->index = err ? tty_item->index : 0;
+    if (err)
+        tty_item->index = 0;
 
     printk(KERN_INFO "MD5: Executing WRITE\n");
 
@@ -235,7 +246,11 @@ static ssize_t MD5_write(struct file * filep, const char * buffer, size_t len, l
 
 // permissions
 static int md5_dev_uevent(struct device *dev, struct kobj_uevent_env *env) {
-    add_uevent_var(env, "DEVMODE=%#o", MD5_MODE);
+    char mode[20];
+
+    sprintf(mode, "DEVMODE=%#o", MD5_MODE);
+    add_uevent_var(env, mode);
+
     return 0;
 }
 
@@ -288,15 +303,15 @@ static int __init MD5_module_init(void) {
 }
 
 static void __exit MD5_module_exit(void) {
-    struct tty_listitem *lptr, *next;
+    struct tty_list *item, *next;
     unregister_chrdev_region(MKDEV(majorNumber, 0), 1);
     device_destroy(MD5charClass, MKDEV(majorNumber, 0));
     cdev_del(&md5_cdev);
     class_destroy(MD5charClass);
-    list_for_each_entry_safe(lptr, next, &tty_list, list)
+    list_for_each_entry_safe(item, next, &tty_list, list)
     {
-        list_del(&lptr->list);
-        kfree(lptr);
+        list_del(&item->list);
+        kfree(item);
     }
     pr_info("md5 char module Unloaded\n");
 }
