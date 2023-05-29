@@ -183,7 +183,7 @@ static int  MD5_open(struct inode* inodep, struct file * filep) {
     dev_t key;
 
     if (!current->signal->tty) {
-        pr_err("md5: process \"%s\" has no ctl tty\n", current->comm);
+        pr_err("MD5: process \"%s\" has no ctl tty\n", current->comm);
         return -EINVAL;
     }
     key = tty_devnum(current->signal->tty);
@@ -197,6 +197,8 @@ static int  MD5_open(struct inode* inodep, struct file * filep) {
         return -ENOMEM;
 
     filep->private_data = tty_item;
+
+    printk(KERN_INFO "MD5: Executing OPEN\n");
 
     return nonseekable_open(inodep, filep);
 
@@ -213,6 +215,8 @@ static ssize_t MD5_read(struct file * filep, char * buffer, size_t len, loff_t *
 
     tty_item->index += len;
 
+    printk(KERN_INFO "MD5: Executing READ\n");
+
     return len;
 }
 
@@ -223,6 +227,8 @@ static ssize_t MD5_write(struct file * filep, const char * buffer, size_t len, l
     ssize_t err = md5sum((uint32_t*) tty_item->hash, buffer, len);
 
     tty_item->index = err ? tty_item->index : 0;
+
+    printk(KERN_INFO "MD5: Executing WRITE\n");
 
     return err ? err : len;
 }
