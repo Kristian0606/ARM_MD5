@@ -235,7 +235,7 @@ static ssize_t MD5_write(struct file * filep, const char * buffer, size_t len, l
 
 // permissions
 static int md5_dev_uevent(struct device *dev, struct kobj_uevent_env *env) {
-    add_uevent_var(env, "DEVMODE=%#o", MPC_DEV_MODE);
+    add_uevent_var(env, "DEVMODE=%#o", MD5_MODE);
     return 0;
 }
 
