@@ -122,9 +122,13 @@ ssize_t md5sum(uint32_t *h, const char *ubuff, size_t initial_len) {
     kfree(msg);
     return 0;
 }
-// *****************************************************************************
+// *************************************************************************************************
 // *             TTY structure(linked list) to communicate with terminal    *
-// *****************************************************************************
+// * By using the TTY subsystem and associating your driver with a TTY device file like /dev/md5,
+// we can establish a communication channel between the terminal and the driver.
+// *************************************************************************************************
+
+//tty_list structure used to store information related to tty devices, with members for device ID, hash value, index, and list linkage.
 struct tty_list {
     dev_t device_id;
     uint8_t hash[MD5_HASH_SIZE];
@@ -133,35 +137,39 @@ struct tty_list {
 };
 
 
-// the list of devices and a lock to protect it
-static LIST_HEAD(tty_list);
-static struct mutex tty_list_mutex;
+
+static LIST_HEAD(tty_list); // This line declares a static linked list head named tty_list using the LIST_HEAD macro. By using this macro, a new empty linked list named tty_list is created.
+static struct mutex tty_list_mutex; // tty_list_mutex is a mutex specifically associated with the tty_list. Concurrent access to the tty_list can be controlled and synchronized. It ensures that only one thread or process can access the tty_list at a time, preventing data races or inconsistent modifications.
 
 static struct tty_list *find_tty_item(dev_t device_id) {
-    struct tty_list *item;
-    struct tty_list *found =NULL;
+    struct tty_list *item;  // Declare a pointer to a tty_list item
+    struct tty_list *found =NULL; // Initialize a pointer to the found item as NULL
 
     list_for_each_entry(item, &tty_list, list) {
+        // Iterate through each item in the linked list
         if (item->device_id == device_id){
-            found=item;
+            found=item; // Set the found pointer to the current item if the device_id matches
         }
-        return found;
+        return found;  // Return the found pointer immediately
     }
+    // The loop has finished without finding a matching item
     if(!found){
+        // If no matching item was found, allocate memory for a new tty_list item
         found = kmalloc(sizeof(struct tty_list), GFP_KERNEL);
         if(!found){
-            return NULL;
+            return NULL;  // Return NULL if memory allocation fails
         }
     }
 
-    /* init tty */
+    // Initialize the newly allocated tty_list item
     memset(found, 0, sizeof(struct tty_list));
     found->device_id = device_id;
     found->index = 0;
 
+    // Add the initialized item to the linked list
     list_add(&found->list, &tty_list);
 
-    return found;
+    return found; // Return the found item or the newly allocated item
 }
 
 static int    majorNumber;
@@ -184,72 +192,71 @@ static struct file_operations md5_fops =
         };
 
 static int  MD5_open(struct inode* inodep, struct file * filep) {
-    struct tty_list *tty_item;
-    dev_t device_id;
+    struct tty_list *tty_item; // Declare a pointer to a tty_list item
+    dev_t device_id;  // Declare a device ID variable
 
     if (!current->signal->tty) {
         pr_err("MD5: process \"%s\" has no tty\n", current->comm);
-        return -EINVAL;
+        return -EINVAL;  // Return an error code (-EINVAL) if the current process has no tty
     }
     device_id = tty_devnum(current->signal->tty);
 
-    /* look for tty in the list */
-    mutex_lock(&tty_list_mutex);
-    tty_item = find_tty_item(device_id);
+    mutex_lock(&tty_list_mutex); // Acquire the mutex lock to access the tty_list
+    tty_item = find_tty_item(device_id); // Find the tty_list item with the given device ID
     if (!tty_item) {
-        mutex_unlock(&tty_list_mutex);
-        return -ENOMEM;
+        mutex_unlock(&tty_list_mutex);  // Release the mutex lock
+        return -ENOMEM;   // Return an error code (-ENOMEM) if the tty_list item is not found
     }
-    mutex_unlock(&tty_list_mutex);
+    mutex_unlock(&tty_list_mutex); // Release the mutex lock
 
-    filep->private_data = tty_item;
+    filep->private_data = tty_item; // Set the private_data field of the file structure to point to the tty_list item
 
     printk(KERN_INFO "MD5: Executing OPEN\n");
 
-    return nonseekable_open(inodep, filep);
+    return nonseekable_open(inodep, filep); // Call the nonseekable_open function and return its result as the driver don't support seeking (llseek_)
 }
 
 
 static ssize_t MD5_read(struct file * filep, char * buffer, size_t len, loff_t * offset) {
-    struct tty_list *tty_item = (struct tty_list *)filep->private_data;
-    ssize_t bytes_read = 0;
+    struct tty_list *tty_item = (struct tty_list *)filep->private_data; // Retrieve the tty_list item from the private_data field of the file structure
+    ssize_t bytes_read = 0; // Initialize the variable to keep track of the number of bytes read
 
     if (*offset >= MD5_HASH_SIZE)
-        return 0;  // Reached end of data, nothing more to read
+        return 0;  // It indicates that the end of the data has been reached. Return 0 to signify that there is nothing more to read
 
-    bytes_read = min(len, (size_t)(MD5_HASH_SIZE - *offset));
+    bytes_read = min(len, (size_t)(MD5_HASH_SIZE - *offset)); // Calculate the maximum number of bytes that can be read without exceeding the remaining data size
 
     if (copy_to_user(buffer, tty_item->hash + *offset, bytes_read))
-        return -EFAULT;
+        return -EFAULT;  // Copy the data from the tty_list item's hash buffer to the user-provided buffer. If copy_to_user fails, return -EFAULT to indicate a copy error.
 
-    *offset += bytes_read;
+    *offset += bytes_read;  // Update the offset by the number of bytes read
 
     printk(KERN_INFO "MD5: Executing READ\n");
 
-    return bytes_read;
+    return bytes_read;  // Return the number of bytes read
 }
 
 
 static ssize_t MD5_write(struct file * filep, const char * buffer, size_t len, loff_t * offset) {
-    struct tty_list *tty_item = (struct tty_list *)filep->private_data;
-    ssize_t err = 0;
+    struct tty_list *tty_item = (struct tty_list *)filep->private_data; // Retrieve the tty_list item from the private_data field of the file structure
+    ssize_t err = 0; // Initialize an error variable
 
-    err = md5sum((uint32_t *)tty_item->hash, buffer, len);
+    err = md5sum((uint32_t *)tty_item->hash, buffer, len);   // Calculate the MD5 hash of the input buffer and store it in the tty_list item's hash buffer. The return value of md5sum is stored in the err variable.
 
     if (err)
-        tty_item->index = 0;
+        tty_item->index = 0; // If there is an error (non-zero return value from md5sum), reset the index of the tty_list item to 0.
 
     printk(KERN_INFO "MD5: Executing WRITE\n");
 
-    return err ? err : len;
+    return err ? err : len; // Return the error value if it is non-zero, otherwise return the length of the input buffer (indicating the number of bytes written)
 }
 
 // permissions
 static int md5_dev_uevent(struct device *dev, struct kobj_uevent_env *env) {
     char mode[20];
 
-    sprintf(mode, "DEVMODE=%#o", MD5_MODE);
-    add_uevent_var(env, mode);
+    sprintf(mode, "DEVMODE=%#o", MD5_MODE); // Format the mode information as a string using the MD5_MODE constant and store it in the mode array
+    add_uevent_var(env, mode); // Add the mode string as an environment variable to the kobj_uevent_env structure
 
     return 0;
 }
@@ -298,7 +305,7 @@ static int __init MD5_module_init(void) {
         unregister_chrdev_region(devt, 1);
         return -1;
     }
-    pr_info("md5 char module loaded\n");
+    printk(KERN_INFO "MD5: MD5 Device is loaded\n");;
     return 0;
 }
 
@@ -313,7 +320,7 @@ static void __exit MD5_module_exit(void) {
         list_del(&item->list);
         kfree(item);
     }
-    pr_info("md5 char module Unloaded\n");
+    printk(KERN_INFO "MD5: MD5 Device is unloaded\n");
 }
 
 module_init(MD5_module_init);
