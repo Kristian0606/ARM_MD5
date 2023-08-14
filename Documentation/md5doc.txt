@@ -1,0 +1,29 @@
+MD5 is a message digest algorithm, hashing the input into a 128-bit fingerprint. It is used in many applications, including digital signatures and file integrity verification, to verify that the data has not been altered by an unauthorized person or process. MD5 is not collision resistant, and it isn't suitable for applications like SSL certificates or digital signatures that rely on this property. An attacker can generate an MD5 hash of a fraudulent certificate that will match the hash of a legitimate certificate, allowing the attacker to create a certificate with the same digital signature as the original.
+MD5 is considered to be cryptographically broken and unsuitable for further use. It has been shown that collisions can be found in the MD5 function and that it is possible to create a certificate that has the same digital signature as a legitimate certificate. This is possible because MD5 is not collision resistant. An attacker can generate an MD5 hash of a fraudulent certificate that will match the hash of a legitimate certificate, allowing the attacker to create a certificate with the same digital signature as the original.
+This can be exploited by an attacker to create a fraudulent certificate that will be accepted as valid by browsers and other applications. This is possible because MD5 is not collision resistant. An attacker can generate an MD5 hash of a fraudulent certificate that will match the hash of a legitimate certificate, allowing the attacker to create a certificate with the same digital signature as the original.
+An example of two messages that have the same MD5 hash is shown below:
+
+https://www.mscs.dal.ca/~selinger/md5collision/
+
+d131dd02c5e6eec4693d9a0698aff95c2fcab58712467eab4004583eb8fb7f89 
+55ad340609f4b30283e488832571415a085125e8f7cdc99fd91dbdf280373c5b 
+d8823e3156348f5bae6dacd436c919c6dd53e2b487da03fd02396306d248cda0 
+e99f33420f577ee8ce54b67080a80d1ec69821bcb6a8839396f9652b6ff72a70
+
+and
+
+d131dd02c5e6eec4693d9a0698aff95c2fcab50712467eab4004583eb8fb7f89 
+55ad340609f4b30283e4888325f1415a085125e8f7cdc99fd91dbd7280373c5b 
+d8823e3156348f5bae6dacd436c919c6dd53e23487da03fd02396306d248cda0 
+e99f33420f577ee8ce54b67080280d1ec69821bcb6a8839396f965ab6ff72a70 
+
+The two messages above have the same MD5 hash, but they are different messages. This is possible because MD5 is not collision resistant. An attacker can generate an MD5 hash of a fraudulent certificate that will match the hash of a legitimate certificate, allowing the attacker to create a certificate with the same digital signature as the original.
+MD5 1: afde9248b9ae91fd92a8fe9e259286a2
+SHA 1: e9972cadfa866712c92ece6625c7d85b57f68a2e
+
+MD5 2: afde9248b9ae91fd92a8fe9e259286a2
+SHA 2: 7a4f9b3c2f3d6b6f8f2e6
+WRONG but implement same digest vulnerability? 
+
+Brute force attack - fast
+
